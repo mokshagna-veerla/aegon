@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block title %}{{ case.case_number }} – AEGON{% endblock %}
+{% block page_title %}{{ case.case_number }}{% endblock %}
+{% block page_subtitle %}{{ case.title }}{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+  <a href="{{ url_for('cases.list_cases') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-white text-sm mb-6 transition-colors">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back to Cases
+  </a>
+
+  <!-- Case header card -->
+  <div class="glass-card p-6 mb-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="badge-indigo text-xs px-3 py-1 rounded-full font-mono font-bold">{{ case.case_number }}</span>
+          <span class="{{ case.status_badge }} text-xs px-2.5 py-1 rounded-full font-medium capitalize">{{ case.status }}</span>
+          {% if case.document_count > 0 %}
+          <span class="badge-gray text-xs px-2.5 py-1 rounded-full">{{ case.document_count }} document{{ 's' if case.document_count != 1 }}</span>
+          {% endif %}
+        </div>
+        <h2 class="text-white text-xl font-bold">{{ case.title }}</h2>
+        {% if case.description %}
+        <p class="text-slate-400 text-sm mt-2 max-w-2xl">{{ case.description }}</p>
+        {% endif %}
+        <p class="text-slate-600 text-xs mt-3">
+          Created by <span class="text-slate-400">{{ case.creator.username }}</span>
+          on {{ case.created_at.strftime('%d %B %Y at %H:%M UTC') }}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 flex-shrink-0">
+        {% if current_user.can_upload %}
+        <a href="{{ url_for('documents.upload', case_id=case.id) }}"
+           class="btn-primary px-5 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-upload"></i> Upload Evidence
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Documents section -->
+  <div class="glass-card overflow-hidden">
+    <!-- Header with search -->
+    <div class="px-6 py-4 border-b border-white/5 flex flex-wrap items-center gap-4">
+      <h3 class="text-white font-semibold flex items-center gap-2">
+        <i class="fa-solid fa-file-shield text-brand-400"></i>
+        Evidence Documents
+      </h3>
+      <form method="GET" class="flex-1 min-w-[200px]">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs"></i>
+          <input type="text" name="q" value="{{ search }}" placeholder="Search by filename or OCR content…"
+                 class="input-field w-full pl-8 pr-4 py-2 text-xs rounded-lg" />
+        </div>
+      </form>
+    </div>
+
+    {% if documents %}
+    <div class="overflow-x-auto">
+      <table class="data-table w-full">
+        <thead><tr>
+          <th class="text-left">Filename</th>
+          <th class="text-left">SHA-256 Hash</th>
+          <th class="text-center">Size</th>
+          <th class="text-center">Status</th>
+          <th class="text-left">Blockchain TX</th>
+          <th class="text-right">Uploaded</th>
+          <th class="text-right">Actions</th>
+        </tr></thead>
+        <tbody>
+        {% for doc in documents %}
+        <tr id="doc-row-{{ doc.id }}">
+          <td>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+                {% if doc.is_pdf %}bg-rose-500/15{% elif doc.is_image %}bg-sky-500/15{% else %}bg-slate-500/15{% endif %}">
+                <i class="fa-solid {% if doc.is_pdf %}fa-file-pdf text-rose-400{% elif doc.is_image %}fa-file-image text-sky-400{% else %}fa-file text-slate-400{% endif %} text-xs"></i>
+              </div>
+              <div>
+                <p class="text-white text-sm font-medium truncate max-w-xs">{{ doc.original_filename }}</p>
+                <p class="text-slate-600 text-xs">by {{ doc.uploader.username }}</p>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="hash-mono" title="{{ doc.sha256_hash }}">{{ doc.sha256_hash[:24] }}…</span>
+          </td>
+          <td class="text-center">
+            <span class="text-slate-400 text-xs">
+              {% if doc.file_size < 1024 %}{{ doc.file_size }} B
+              {% elif doc.file_size < 1048576 %}{{ (doc.file_size / 1024)|round(1) }} KB
+              {% else %}{{ (doc.file_size / 1048576)|round(2) }} MB{% endif %}
+            </span>
+          </td>
+          <td class="text-center">
+            <span id="status-badge-{{ doc.id }}"
+                  class="{% if doc.tampered %}badge-red{% else %}badge-green{% endif %} text-xs px-2.5 py-1 rounded-full font-medium">
+              {% if doc.tampered %}⚠ Tampered{% else %}✓ Authentic{% endif %}
+            </span>
+          </td>
+          <td>
+            {% if doc.blockchain_tx %}
+            <span class="hash-mono text-brand-400" title="{{ doc.blockchain_tx }}">{{ doc.blockchain_tx[:20] }}…</span>
+            {% else %}
+            <span class="text-slate-600 text-xs">—</span>
+            {% endif %}
+          </td>
+          <td class="text-right">
+            <span class="text-slate-500 text-xs">{{ doc.timestamp.strftime('%d %b, %H:%M') }}</span>
+          </td>
+          <td>
+            <div class="flex items-center justify-end gap-2">
+
+              <!-- View -->
+              <a href="{{ url_for('documents.view_document', doc_id=doc.id) }}" target="_blank"
+                 title="View document"
+                 class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-brand-400 hover:bg-brand-400/10 transition-all"
+                 id="view-btn-{{ doc.id }}">
+                <i class="fa-solid fa-eye text-xs"></i>
+              </a>
+
+              <!-- Verify -->
+              <button type="button" title="Verify integrity"
+                      onclick="verifyDoc({{ doc.id }})"
+                      class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 transition-all"
+                      id="verify-btn-{{ doc.id }}">
+                <i class="fa-solid fa-shield-check text-xs"></i>
+              </button>
+
+              {% if current_user.can_tamper %}
+              <!-- Tamper simulate -->
+              <button type="button" title="Simulate tamper (Admin)"
+                      onclick="tamperDoc({{ doc.id }})"
+                      class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 transition-all"
+                      id="tamper-btn-{{ doc.id }}">
+                <i class="fa-solid fa-biohazard text-xs"></i>
+              </button>
+
+              <!-- Restore -->
+              <button type="button" title="Restore document (Admin)"
+                      onclick="restoreDoc({{ doc.id }})"
+                      class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all"
+                      id="restore-btn-{{ doc.id }}">
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+              </button>
+              {% endif %}
+
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="py-16 text-center">
+      <i class="fa-solid fa-file-circle-plus text-slate-700 text-4xl mb-4"></i>
+      <p class="text-slate-500 text-sm">
+        {% if search %}No documents matching "{{ search }}"{% else %}No evidence documents yet.{% endif %}
+      </p>
+      {% if current_user.can_upload and not search %}
+      <a href="{{ url_for('documents.upload', case_id=case.id) }}"
+         class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold mt-4">
+        <i class="fa-solid fa-upload"></i> Upload First Document
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Verification Result Modal -->
+<div id="verify-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);">
+  <div class="glass-card max-w-lg w-full mx-4 p-8 animate-slide-in" style="border: 1px solid rgba(99,102,241,0.3);">
+    <div id="modal-content">
+      <div class="flex justify-center mb-4">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" id="modal-icon-bg">
+          <i class="fa-solid text-2xl" id="modal-icon"></i>
+        </div>
+      </div>
+      <h3 class="text-center text-white font-bold text-xl mb-1" id="modal-status"></h3>
+      <p class="text-center text-slate-400 text-sm mb-6" id="modal-verdict"></p>
+
+      <div class="space-y-3 text-xs">
+        <div class="glass-card p-3 rounded-xl">
+          <p class="text-slate-500 mb-1">Anchored Hash (Blockchain)</p>
+          <p class="hash-mono text-slate-300 break-all" id="modal-anchored-hash"></p>
+        </div>
+        <div class="glass-card p-3 rounded-xl">
+          <p class="text-slate-500 mb-1">Computed Hash (Re-derived)</p>
+          <p class="hash-mono text-slate-300 break-all" id="modal-computed-hash"></p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="glass-card p-3 rounded-xl">
+            <p class="text-slate-500 mb-1">Blockchain TX</p>
+            <p class="hash-mono text-brand-400 break-all" id="modal-tx"></p>
+          </div>
+          <div class="glass-card p-3 rounded-xl">
+            <p class="text-slate-500 mb-1">RSA Signature</p>
+            <p class="font-semibold text-sm" id="modal-sig"></p>
+          </div>
+        </div>
+        <div class="glass-card p-3 rounded-xl">
+          <p class="text-slate-500 mb-1">Anchored At</p>
+          <p class="text-slate-300" id="modal-anchored-at"></p>
+        </div>
+      </div>
+
+      <button onclick="document.getElementById('verify-modal').classList.add('hidden')"
+              class="w-full mt-6 py-2.5 rounded-xl text-slate-400 text-sm hover:text-white transition-colors"
+              style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function verifyDoc(docId) {
+  const btn = document.getElementById(`verify-btn-${docId}`);
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>';
+
+  const resp = await fetch(`/verify/${docId}`);
+  const data = await resp.json();
+  btn.innerHTML = '<i class="fa-solid fa-shield-check text-xs"></i>';
+
+  const modal = document.getElementById('verify-modal');
+  const isMatch = data.status === 'MATCH';
+
+  document.getElementById('modal-icon-bg').className = `w-16 h-16 rounded-full flex items-center justify-center ${isMatch ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`;
+  document.getElementById('modal-icon').className = `fa-solid text-2xl ${isMatch ? 'fa-shield-check text-emerald-400' : 'fa-triangle-exclamation text-rose-400'}`;
+  document.getElementById('modal-status').textContent = data.status === 'ERROR' ? 'ERROR' : (isMatch ? 'AUTHENTIC' : 'TAMPER DETECTED');
+  document.getElementById('modal-status').className = `text-center font-bold text-xl mb-1 ${isMatch ? 'text-emerald-400' : 'text-rose-400'}`;
+  document.getElementById('modal-verdict').textContent = data.verdict || data.message || '';
+  document.getElementById('modal-anchored-hash').textContent = data.anchored_hash || '—';
+  document.getElementById('modal-computed-hash').textContent = data.computed_hash || '—';
+  document.getElementById('modal-tx').textContent = (data.blockchain_tx || '—').substring(0, 24) + '…';
+  document.getElementById('modal-sig').textContent = data.signature_valid ? '✓ Valid' : '✗ Invalid';
+  document.getElementById('modal-sig').className = `font-semibold text-sm ${data.signature_valid ? 'text-emerald-400' : 'text-rose-400'}`;
+  document.getElementById('modal-anchored-at').textContent = data.anchored_at || '—';
+
+  // Update status badge
+  const badge = document.getElementById(`status-badge-${docId}`);
+  if (badge) {
+    if (isMatch) {
+      badge.className = 'badge-green text-xs px-2.5 py-1 rounded-full font-medium';
+      badge.textContent = '✓ Authentic';
+    } else {
+      badge.className = 'badge-red text-xs px-2.5 py-1 rounded-full font-medium';
+      badge.textContent = '⚠ Tampered';
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+async function tamperDoc(docId) {
+  if (!confirm('⚠️ This will simulate a tamper attack by corrupting the encrypted vault file.\nThe next integrity check will show MISMATCH.\n\nProceed?')) return;
+
+  const btn = document.getElementById(`tamper-btn-${docId}`);
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>';
+
+  const resp = await fetch(`/verify/${docId}/tamper`, { method: 'POST', headers: {'Content-Type':'application/json'} });
+  const data = await resp.json();
+  btn.innerHTML = '<i class="fa-solid fa-biohazard text-xs"></i>';
+
+  if (data.success) {
+    const badge = document.getElementById(`status-badge-${docId}`);
+    if (badge) { badge.className = 'badge-red text-xs px-2.5 py-1 rounded-full font-medium'; badge.textContent = '⚠ Tampered'; }
+    showToast('⚠ Tamper simulated. Run verification to see MISMATCH alert.', 'warning');
+  } else {
+    showToast(data.error || 'Tamper failed.', 'error');
+  }
+}
+
+async function restoreDoc(docId) {
+  const btn = document.getElementById(`restore-btn-${docId}`);
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>';
+
+  const resp = await fetch(`/verify/${docId}/restore`, { method: 'POST', headers: {'Content-Type':'application/json'} });
+  const data = await resp.json();
+  btn.innerHTML = '<i class="fa-solid fa-rotate-left text-xs"></i>';
+
+  if (data.success) {
+    const badge = document.getElementById(`status-badge-${docId}`);
+    if (badge) { badge.className = 'badge-green text-xs px-2.5 py-1 rounded-full font-medium'; badge.textContent = '✓ Authentic'; }
+    showToast('✓ Document restored. Integrity check will now pass.', 'success');
+  } else {
+    showToast(data.error || 'Restore failed.', 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const colors = { success: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', warning: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30', error: 'bg-rose-500/20 text-rose-300 border-rose-500/30' };
+  const toast = document.createElement('div');
+  toast.className = `fixed bottom-6 right-6 z-50 ${colors[type] || colors.success} border px-5 py-3 rounded-xl text-sm font-medium animate-fade-in shadow-lg`;
+  toast.style.backdropFilter = 'blur(12px)';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// Close modal on backdrop click
+document.getElementById('verify-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.add('hidden');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Case Files – AEGON{% endblock %}
+{% block page_title %}Case Files{% endblock %}
+{% block page_subtitle %}All registered cases and evidence containers{% endblock %}
+
+{% block content %}
+<!-- Stats row -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="glass-card p-5 stat-glow-indigo">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Cases</p>
+      <i class="fa-solid fa-folder-open text-brand-400 text-lg"></i>
+    </div>
+    <p class="text-white text-3xl font-bold">{{ total_cases }}</p>
+    <p class="text-slate-600 text-xs mt-1">Active registrations</p>
+  </div>
+  <div class="glass-card p-5 stat-glow-green">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Evidence Files</p>
+      <i class="fa-solid fa-file-shield text-emerald-400 text-lg"></i>
+    </div>
+    <p class="text-white text-3xl font-bold">{{ total_docs }}</p>
+    <p class="text-slate-600 text-xs mt-1">Encrypted & anchored</p>
+  </div>
+  <div class="glass-card p-5 stat-glow-yellow">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Chain Entries</p>
+      <i class="fa-solid fa-link text-yellow-400 text-lg"></i>
+    </div>
+    <p class="text-white text-3xl font-bold">{{ total_docs }}</p>
+    <p class="text-slate-600 text-xs mt-1">Blockchain anchored</p>
+  </div>
+  <div class="glass-card p-5 stat-glow-red">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Your Role</p>
+      <i class="fa-solid fa-id-badge text-rose-400 text-lg"></i>
+    </div>
+    <p class="text-white text-base font-bold leading-tight mt-1">{{ current_user.role_label }}</p>
+    <p class="text-slate-600 text-xs mt-1">{{ current_user.username }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+  <!-- Cases list -->
+  <div class="xl:col-span-2">
+    <div class="glass-card overflow-hidden">
+      <!-- Header -->
+      <div class="px-6 py-5 border-b border-white/5 flex flex-wrap items-center gap-4">
+        <h3 class="text-white font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-folder text-brand-400"></i> Cases
+        </h3>
+        <form method="GET" class="flex-1 min-w-[180px]">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs"></i>
+            <input type="text" name="q" value="{{ search }}" placeholder="Search cases…"
+                   class="input-field w-full pl-8 pr-4 py-2 text-xs rounded-lg" />
+          </div>
+        </form>
+        <a href="{{ url_for('cases.create_case') }}"
+           class="btn-primary px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-2 whitespace-nowrap">
+          <i class="fa-solid fa-plus"></i> New Case
+        </a>
+      </div>
+
+      {% if cases %}
+      <div class="overflow-x-auto">
+        <table class="data-table w-full">
+          <thead><tr>
+            <th class="text-left">Case Number</th>
+            <th class="text-left">Title</th>
+            <th class="text-center">Docs</th>
+            <th class="text-center">Status</th>
+            <th class="text-right">Created</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+          {% for case in cases %}
+          <tr class="group">
+            <td>
+              <span class="text-brand-300 font-mono text-xs font-semibold">{{ case.case_number }}</span>
+            </td>
+            <td>
+              <span class="text-white text-sm font-medium">{{ case.title }}</span>
+              {% if case.description %}
+              <p class="text-slate-500 text-xs mt-0.5 truncate max-w-xs">{{ case.description }}</p>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge-indigo text-xs px-2.5 py-1 rounded-full font-semibold">{{ case.document_count }}</span>
+            </td>
+            <td class="text-center">
+              <span class="{{ case.status_badge }} text-xs px-2.5 py-1 rounded-full font-medium capitalize">{{ case.status }}</span>
+            </td>
+            <td class="text-right">
+              <span class="text-slate-500 text-xs">{{ case.created_at.strftime('%d %b %Y') }}</span>
+            </td>
+            <td>
+              <a href="{{ url_for('cases.case_detail', case_id=case.id) }}"
+                 class="text-brand-400 hover:text-white text-xs font-medium transition-colors flex items-center gap-1 justify-end">
+                Open <i class="fa-solid fa-arrow-right text-xs"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="py-16 text-center">
+        <i class="fa-solid fa-folder-open text-slate-700 text-4xl mb-4"></i>
+        <p class="text-slate-500 text-sm">
+          {% if search %}No cases matching "{{ search }}"{% else %}No cases yet. Create your first case.{% endif %}
+        </p>
+        {% if not search %}
+        <a href="{{ url_for('cases.create_case') }}" class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold mt-4">
+          <i class="fa-solid fa-plus"></i> Create First Case
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div>
+    <div class="glass-card overflow-hidden">
+      <div class="px-5 py-4 border-b border-white/5">
+        <h3 class="text-white font-semibold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-brand-400"></i> Audit Activity
+        </h3>
+      </div>
+      <div class="divide-y divide-white/5 max-h-[520px] overflow-y-auto">
+      {% for audit in recent_audits %}
+      <div class="px-5 py-3 hover:bg-white/2 transition-colors">
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0
+            {% if audit.status == 'success' %}bg-emerald-500/15{% elif audit.status in ['mismatch','failure'] %}bg-rose-500/15{% else %}bg-yellow-500/15{% endif %}">
+            <i class="fa-solid
+              {% if audit.action == 'upload' %}fa-upload
+              {% elif audit.action == 'view' %}fa-eye
+              {% elif audit.action == 'verify' %}fa-shield-check
+              {% elif audit.action == 'tamper_simulate' %}fa-triangle-exclamation
+              {% elif audit.action == 'login' %}fa-right-to-bracket
+              {% elif audit.action == 'create_case' %}fa-folder-plus
+              {% else %}fa-circle-dot{% endif %}
+              text-xs
+              {% if audit.status == 'success' %}text-emerald-400{% elif audit.status in ['mismatch','failure'] %}text-rose-400{% else %}text-yellow-400{% endif %}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-slate-300 text-xs font-medium">{{ audit.action_label }}</p>
+            {% if audit.user %}<p class="text-slate-600 text-xs">by {{ audit.user.username }}</p>{% endif %}
+            <p class="text-slate-700 text-xs mt-0.5">{{ audit.timestamp.strftime('%d %b, %H:%M') }}</p>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="py-8 text-center text-slate-600 text-sm">No activity yet.</div>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

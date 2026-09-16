@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}AEGON – Secure Evidence Management{% endblock %}</title>
+  <meta name="description" content="AEGON: Case-centric secure digital document management platform with blockchain-backed integrity verification for law enforcement." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
+              300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1',
+              600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
+            }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.4s ease-out',
+            'slide-in': 'slideIn 0.35s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'none' }},
+            slideIn: { '0%': { opacity: 0, transform: 'translateX(-12px)' }, '100%': { opacity: 1, transform: 'none' }},
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0b0f1a; color: #e2e8f0; }
+
+    /* Sidebar */
+    .sidebar { background: linear-gradient(180deg, #0d1220 0%, #090d18 100%); border-right: 1px solid rgba(99,102,241,0.15); }
+    .nav-link { transition: all 0.2s; border-radius: 10px; }
+    .nav-link:hover, .nav-link.active { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .nav-link.active { border-left: 3px solid #6366f1; }
+
+    /* Glass cards */
+    .glass-card { background: rgba(255,255,255,0.04); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
+    .glass-card-hover { transition: all 0.25s; }
+    .glass-card-hover:hover { background: rgba(255,255,255,0.07); border-color: rgba(99,102,241,0.3); transform: translateY(-2px); box-shadow: 0 12px 32px rgba(99,102,241,0.12); }
+
+    /* Badges */
+    .badge-green { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-gray { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+    .badge-indigo { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+
+    /* Buttons */
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); box-shadow: 0 4px 15px rgba(99,102,241,0.35); transition: all 0.2s; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.5); }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 12px rgba(239,68,68,0.3); transition: all 0.2s; }
+    .btn-danger:hover { transform: translateY(-1px); }
+    .btn-success { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.3); transition: all 0.2s; }
+    .btn-success:hover { transform: translateY(-1px); }
+
+    /* Inputs */
+    .input-field { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #e2e8f0; border-radius: 10px; transition: all 0.2s; }
+    .input-field:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: rgba(99,102,241,0.05); }
+    .input-field::placeholder { color: #475569; }
+
+    /* Table */
+    .data-table th { background: rgba(99,102,241,0.08); color: #94a3b8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 16px; }
+    .data-table td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .data-table tr:hover td { background: rgba(99,102,241,0.05); }
+
+    /* Flash messages */
+    .flash-success { background: rgba(16,185,129,0.12); border-left: 4px solid #10b981; color: #34d399; }
+    .flash-error { background: rgba(239,68,68,0.12); border-left: 4px solid #ef4444; color: #f87171; }
+    .flash-warning { background: rgba(245,158,11,0.12); border-left: 4px solid #f59e0b; color: #fbbf24; }
+    .flash-info { background: rgba(59,130,246,0.12); border-left: 4px solid #3b82f6; color: #60a5fa; }
+
+    /* Hash display */
+    .hash-mono { font-family: 'Courier New', monospace; font-size: 0.75rem; color: #64748b; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 3px; }
+
+    /* Stat card glow */
+    .stat-glow-indigo { box-shadow: 0 0 30px rgba(99,102,241,0.1); }
+    .stat-glow-green { box-shadow: 0 0 30px rgba(16,185,129,0.1); }
+    .stat-glow-yellow { box-shadow: 0 0 30px rgba(245,158,11,0.1); }
+    .stat-glow-red { box-shadow: 0 0 30px rgba(239,68,68,0.1); }
+  </style>
+
+  {% block head %}{% endblock %}
+</head>
+
+<body class="min-h-screen flex">
+
+{% if current_user.is_authenticated %}
+<!-- ── SIDEBAR ─────────────────────────────────────────────────── -->
+<aside class="sidebar w-64 min-h-screen flex-shrink-0 flex flex-col fixed left-0 top-0 bottom-0 z-50 overflow-y-auto">
+  <!-- Logo -->
+  <div class="px-6 py-6 border-b border-white/5">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl btn-primary flex items-center justify-center">
+        <i class="fa-solid fa-shield-halved text-white text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-white font-bold text-lg leading-none">AEGON</h1>
+        <p class="text-brand-400 text-xs mt-0.5">Evidence Platform</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 px-4 py-6 space-y-1">
+    <p class="text-slate-600 text-xs font-semibold uppercase tracking-widest px-3 mb-3">Navigation</p>
+
+    <a href="{{ url_for('cases.list_cases') }}"
+       class="nav-link {% if request.endpoint and 'cases' in request.endpoint %}active{% endif %} flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white">
+      <i class="fa-solid fa-folder-open w-4 text-center"></i>
+      <span class="text-sm font-medium">Case Files</span>
+    </a>
+
+    <a href="{{ url_for('cases.create_case') }}"
+       class="nav-link flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white">
+      <i class="fa-solid fa-plus-circle w-4 text-center"></i>
+      <span class="text-sm font-medium">New Case</span>
+    </a>
+
+    {% if current_user.is_admin %}
+    <div class="pt-4">
+      <p class="text-slate-600 text-xs font-semibold uppercase tracking-widest px-3 mb-3">Admin</p>
+      <a href="{{ url_for('auth.register') }}"
+         class="nav-link flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white">
+        <i class="fa-solid fa-user-plus w-4 text-center"></i>
+        <span class="text-sm font-medium">Add User</span>
+      </a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <!-- User Card -->
+  <div class="px-4 py-4 border-t border-white/5">
+    <div class="glass-card p-3 rounded-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-brand-600/30 flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-user text-brand-400 text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-white text-sm font-semibold truncate">{{ current_user.username }}</p>
+          <p class="text-slate-500 text-xs truncate">{{ current_user.role_label }}</p>
+        </div>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="mt-3 w-full flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-rose-400 transition-colors py-1.5 rounded-lg hover:bg-rose-500/10">
+        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+      </a>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN CONTENT ───────────────────────────────────────────── -->
+<main class="flex-1 ml-64 min-h-screen flex flex-col">
+
+  <!-- Top bar -->
+  <header class="sticky top-0 z-40 px-8 py-4 border-b border-white/5 flex items-center justify-between" style="background: rgba(11,15,26,0.85); backdrop-filter: blur(12px);">
+    <div>
+      <h2 class="text-white font-semibold text-lg">{% block page_title %}Dashboard{% endblock %}</h2>
+      <p class="text-slate-500 text-xs mt-0.5">{% block page_subtitle %}AEGON Secure Evidence Management{% endblock %}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="badge-indigo text-xs px-3 py-1 rounded-full font-medium">
+        <i class="fa-solid fa-circle-dot text-xs mr-1"></i> SECURE SESSION
+      </span>
+      <span class="text-slate-600 text-xs" id="live-time"></span>
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  <div class="px-8 pt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash-{{ category if category in ['success','error','warning','info'] else 'info' }} px-4 py-3 rounded-xl mb-3 flex items-center gap-3 animate-fade-in text-sm">
+          <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'error' %}fa-circle-exclamation{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <div class="flex-1 px-8 py-4 animate-fade-in">
+    {% block content %}{% endblock %}
+  </div>
+
+  <footer class="px-8 py-4 border-t border-white/5 text-center text-slate-700 text-xs">
+    AEGON v1.0 &middot; SIH Problem 26190 &middot; Ministry of Home Affairs / NCRB &middot; AES-256-GCM + SHA-256 + RSA-2048
+  </footer>
+</main>
+
+{% else %}
+<!-- Unauthenticated layout: content block already defined above, rendered here -->
+<div class="w-full">
+  {{ self.content() }}
+</div>
+{% endif %}
+
+<script>
+  // Live clock in header
+  function updateClock() {
+    const el = document.getElementById('live-time');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Upload Evidence – {{ case.case_number }} – AEGON{% endblock %}
+{% block page_title %}Upload Evidence{% endblock %}
+{% block page_subtitle %}Case: {{ case.case_number }} · {{ case.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl animate-fade-in">
+  <a href="{{ url_for('cases.case_detail', case_id=case.id) }}"
+     class="inline-flex items-center gap-2 text-slate-500 hover:text-white text-sm mb-6 transition-colors">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back to Case
+  </a>
+
+  <div class="glass-card p-8">
+    <h3 class="text-white font-bold text-xl mb-2 flex items-center gap-3">
+      <i class="fa-solid fa-upload text-brand-400"></i>
+      Upload Evidence Document
+    </h3>
+    <p class="text-slate-500 text-sm mb-8">
+      The document will be SHA-256 hashed, RSA-signed, AES-256-GCM encrypted, and anchored to the blockchain ledger before storage.
+    </p>
+
+    <!-- Cryptographic pipeline visual -->
+    <div class="flex items-center justify-between mb-8 p-4 rounded-xl text-center overflow-x-auto gap-2" style="background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.1);">
+      {% set steps = [
+        ('fa-file', 'Raw File', 'text-slate-400'),
+        ('fa-hashtag', 'SHA-256', 'text-brand-400'),
+        ('fa-signature', 'RSA Sign', 'text-yellow-400'),
+        ('fa-lock', 'AES-256-GCM', 'text-emerald-400'),
+        ('fa-link', 'Blockchain', 'text-sky-400'),
+      ] %}
+      {% for icon, label, color in steps %}
+      <div class="flex flex-col items-center gap-1 flex-shrink-0 min-w-[56px]">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.05);">
+          <i class="fa-solid {{ icon }} {{ color }} text-sm"></i>
+        </div>
+        <span class="text-slate-500 text-xs">{{ label }}</span>
+      </div>
+      {% if not loop.last %}
+      <i class="fa-solid fa-arrow-right text-slate-700 text-xs flex-shrink-0"></i>
+      {% endif %}
+      {% endfor %}
+    </div>
+
+    <form method="POST" action="{{ url_for('documents.upload', case_id=case.id) }}"
+          enctype="multipart/form-data" id="upload-form" class="space-y-6">
+
+      <!-- Drop zone -->
+      <div id="drop-zone"
+           class="border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all"
+           style="border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.03);"
+           onclick="document.getElementById('file-input').click()">
+        <i class="fa-solid fa-cloud-arrow-up text-4xl text-brand-400/50 mb-3 block"></i>
+        <p class="text-slate-300 font-medium text-sm">Drag & drop or click to select file</p>
+        <p class="text-slate-600 text-xs mt-1">PDF, PNG, JPG, JPEG, TIFF — Max 50 MB</p>
+        <div id="file-selected" class="hidden mt-4">
+          <div class="inline-flex items-center gap-3 px-4 py-2 rounded-xl" style="background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);">
+            <i class="fa-solid fa-file-circle-check text-brand-400"></i>
+            <span id="file-name" class="text-brand-300 text-sm font-medium"></span>
+            <span id="file-size" class="text-slate-500 text-xs"></span>
+          </div>
+        </div>
+      </div>
+
+      <input type="file" id="file-input" name="file" class="hidden"
+             accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif" required />
+
+      <!-- Upload button -->
+      <button type="submit" id="upload-btn" disabled
+              class="btn-primary w-full py-3.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none">
+        <i class="fa-solid fa-upload" id="upload-icon"></i>
+        <span id="upload-label">Select a file to upload</span>
+      </button>
+
+      <!-- Progress bar (hidden until submit) -->
+      <div id="progress-container" class="hidden">
+        <div class="flex justify-between text-xs text-slate-500 mb-1.5">
+          <span id="progress-label">Processing cryptographic pipeline…</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+          <div id="progress-bar" class="h-full rounded-full transition-all duration-300"
+               style="background: linear-gradient(90deg, #6366f1, #4338ca); width: 0%;"></div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Security notice -->
+  <div class="glass-card p-5 mt-4">
+    <div class="flex items-start gap-4">
+      <i class="fa-solid fa-shield-check text-emerald-400 text-xl mt-0.5"></i>
+      <div>
+        <p class="text-white text-sm font-semibold mb-1">Security Guarantees</p>
+        <ul class="text-slate-400 text-xs space-y-1">
+          <li>• SHA-256 hash computed before encryption — immutable fingerprint</li>
+          <li>• RSA-2048 PSS signature authenticates upload origin</li>
+          <li>• AES-256-GCM provides authenticated encryption — any tampering is detectable</li>
+          <li>• Metadata anchored to blockchain ledger immediately after upload</li>
+          <li>• Plaintext is never stored on disk</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const fileInput = document.getElementById('file-input');
+  const dropZone = document.getElementById('drop-zone');
+  const fileSelected = document.getElementById('file-selected');
+  const fileName = document.getElementById('file-name');
+  const fileSize = document.getElementById('file-size');
+  const uploadBtn = document.getElementById('upload-btn');
+  const uploadLabel = document.getElementById('upload-label');
+  const form = document.getElementById('upload-form');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    fileName.textContent = file.name;
+    fileSize.textContent = formatBytes(file.size);
+    fileSelected.classList.remove('hidden');
+    uploadBtn.disabled = false;
+    uploadLabel.textContent = 'Upload & Encrypt';
+    dropZone.style.borderColor = 'rgba(99,102,241,0.6)';
+    dropZone.style.background = 'rgba(99,102,241,0.07)';
+  }
+
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#6366f1';
+    dropZone.style.background = 'rgba(99,102,241,0.1)';
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = 'rgba(99,102,241,0.3)';
+    dropZone.style.background = 'rgba(99,102,241,0.03)';
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    if (dt.files.length) {
+      const transfer = new DataTransfer();
+      transfer.items.add(dt.files[0]);
+      fileInput.files = transfer.files;
+      handleFile(dt.files[0]);
+    }
+  });
+
+  // Progress animation on submit
+  form.addEventListener('submit', function() {
+    uploadBtn.disabled = true;
+    document.getElementById('upload-icon').className = 'fa-solid fa-spinner fa-spin';
+    uploadLabel.textContent = 'Encrypting & uploading…';
+    const container = document.getElementById('progress-container');
+    const bar = document.getElementById('progress-bar');
+    const pct = document.getElementById('progress-pct');
+    const lbl = document.getElementById('progress-label');
+    container.classList.remove('hidden');
+
+    const stages = [
+      [15, 'Computing SHA-256 hash…'],
+      [35, 'RSA-2048 signing hash…'],
+      [60, 'AES-256-GCM encrypting…'],
+      [80, 'Writing to encrypted vault…'],
+      [92, 'Anchoring to blockchain ledger…'],
+      [99, 'Finalising…'],
+    ];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < stages.length) {
+        bar.style.width = stages[i][0] + '%';
+        pct.textContent = stages[i][0] + '%';
+        lbl.textContent = stages[i][1];
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 500);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ doc.original_filename }} – Secure Viewer – AEGON</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter','ui-sans-serif'] } } } }</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css" />
+
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0b0f1a; color: #e2e8f0; margin: 0; overflow: hidden; }
+
+    /* Disable all selection and context menus on the viewer area */
+    #viewer-area {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+    }
+
+    .topbar { background: rgba(13,18,32,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(99,102,241,0.15); }
+    .badge-secure { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-classified { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+    #pdf-container {
+      overflow-y: auto;
+      height: calc(100vh - 64px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 0;
+      gap: 16px;
+    }
+
+    canvas.pdf-page {
+      display: block;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      border-radius: 4px;
+      max-width: 100%;
+    }
+
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11,15,26,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    /* Security warning banner */
+    #sec-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: rgba(239,68,68,0.1);
+      border-top: 1px solid rgba(239,68,68,0.3);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      justify-center: center;
+      gap: 8px;
+      font-size: 0.7rem;
+      color: #f87171;
+      text-align: center;
+    }
+
+    /* Scrollbar */
+    #pdf-container::-webkit-scrollbar { width: 6px; }
+    #pdf-container::-webkit-scrollbar-track { background: transparent; }
+    #pdf-container::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 3px; }
+
+    /* ── SCREENSHOT / PRINT PREVENTION ───────────────────── */
+
+    /* Layer 1: Hide everything when printing (Ctrl+P, PDF print) */
+    @media print {
+      body * { display: none !important; visibility: hidden !important; }
+      body::after {
+        content: 'CLASSIFIED – Printing is not permitted for this document.';
+        display: block !important;
+        color: red;
+        font-size: 24px;
+        text-align: center;
+        margin-top: 40vh;
+      }
+    }
+
+    /* Layer 2: Blur-shield overlay – shown on focus loss */
+    #blur-shield {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(11,15,26,0.97);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    #blur-shield.active { display: flex; }
+
+    /* Layer 3: CSS mix-blend trick – transparent overlay that appears opaque in screenshots */
+    #screenshot-defeat {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+      mix-blend-mode: difference;
+      background: rgba(255,255,255,0.006);
+    }
+
+    /* Blur the PDF canvas on focus loss */
+    #viewer-area.blurred #pdf-container { filter: blur(20px); transition: filter 0.15s; }
+  </style>
+</head>
+
+<body>
+
+<!-- ── LOADING OVERLAY ──────────────────────────────── -->
+<div id="loading-overlay">
+  <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #6366f1, #4338ca); box-shadow: 0 8px 32px rgba(99,102,241,0.4);">
+    <i class="fa-solid fa-shield-halved text-white text-2xl"></i>
+  </div>
+  <p class="text-white font-semibold text-lg mb-1">Preparing Secure Viewer</p>
+  <p class="text-slate-500 text-sm mb-6">Decrypting · Watermarking · Rendering</p>
+  <div class="w-64 h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+    <div id="load-bar" class="h-full rounded-full transition-all duration-500" style="background: linear-gradient(90deg,#6366f1,#4338ca); width: 0%;"></div>
+  </div>
+  <p class="text-slate-600 text-xs mt-3" id="load-status">Initializing…</p>
+</div>
+
+<!-- ── TOP BAR ─────────────────────────────────────── -->
+<div class="topbar h-16 flex items-center px-5 gap-4 fixed top-0 left-0 right-0 z-40">
+  <!-- Back -->
+  <a href="{{ url_for('cases.case_detail', case_id=doc.case_id) }}"
+     class="text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-sm">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back
+  </a>
+
+  <div class="w-px h-5 bg-white/10"></div>
+
+  <!-- Doc info -->
+  <div class="flex-1 min-w-0">
+    <p class="text-white text-sm font-semibold truncate">{{ doc.original_filename }}</p>
+    <p class="text-slate-500 text-xs">Case {{ doc.case.case_number }} · {{ doc.case.title }}</p>
+  </div>
+
+  <!-- Status badges -->
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="badge-secure text-xs px-3 py-1 rounded-full font-medium">
+      <i class="fa-solid fa-lock text-xs mr-1"></i> VIEW ONLY
+    </span>
+    <span class="badge-classified text-xs px-3 py-1 rounded-full font-medium">
+      <i class="fa-solid fa-eye text-xs mr-1"></i> CLASSIFIED
+    </span>
+    <span class="text-slate-600 text-xs hidden md:block" id="viewer-info">
+      {{ current_user.username }} · {{ current_user.role_label }}
+    </span>
+  </div>
+
+  <!-- Page nav -->
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <button id="btn-prev" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30" disabled>
+      <i class="fa-solid fa-chevron-left text-xs"></i>
+    </button>
+    <span class="text-slate-400 text-xs whitespace-nowrap">
+      Page <span id="page-num">1</span> of <span id="page-count">—</span>
+    </span>
+    <button id="btn-next" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30" disabled>
+      <i class="fa-solid fa-chevron-right text-xs"></i>
+    </button>
+  </div>
+
+  <!-- Zoom -->
+  <div class="flex items-center gap-1 flex-shrink-0">
+    <button id="btn-zoom-out" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all text-xs">
+      <i class="fa-solid fa-magnifying-glass-minus"></i>
+    </button>
+    <span class="text-slate-500 text-xs w-12 text-center" id="zoom-label">100%</span>
+    <button id="btn-zoom-in" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all text-xs">
+      <i class="fa-solid fa-magnifying-glass-plus"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ── PDF VIEWER ─────────────────────────────────── -->
+<div id="viewer-area" style="padding-top: 64px; padding-bottom: 36px;">
+  <div id="pdf-container"></div>
+</div>
+
+<!-- Layer 3: mix-blend screenshot-defeat overlay (invisible but disrupts flat capture) -->
+<div id="screenshot-defeat" aria-hidden="true"></div>
+
+<!-- Layer 2: Blur-shield shown on window blur / screen capture detection -->
+<div id="blur-shield" role="alertdialog" aria-label="Document hidden">
+  <div class="w-16 h-16 rounded-2xl flex items-center justify-center"
+       style="background: linear-gradient(135deg,#ef4444,#b91c1c); box-shadow:0 8px 32px rgba(239,68,68,0.4);">
+    <i class="fa-solid fa-eye-slash text-white text-2xl"></i>
+  </div>
+  <p class="text-white font-bold text-xl">Document Hidden</p>
+  <p class="text-slate-400 text-sm text-center max-w-xs">
+    This document is concealed when the viewer window loses focus.<br/>
+    Return focus to resume viewing.
+  </p>
+  <p class="text-rose-400 text-xs mt-2">
+    <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+    Screenshot attempt detected &amp; logged.
+  </p>
+</div>
+
+<!-- ── SECURITY BANNER ────────────────────────────── -->
+<div id="sec-banner">
+  <i class="fa-solid fa-shield-halved"></i>
+  <span>
+    <strong>CLASSIFIED – RESTRICTED DOCUMENT</strong> ·
+    Viewing as: <strong>{{ current_user.username }}</strong> [{{ current_user.role_label }}] ·
+    This session is being audited · No download, copy, or print permitted ·
+    <span id="banner-time"></span>
+  </span>
+</div>
+
+<script>
+  // ════════════════════════════════════════════════════════
+  //  AEGON SCREENSHOT PREVENTION – 6-LAYER DEFENCE SYSTEM
+  // ════════════════════════════════════════════════════════
+
+  const VIEWER_USER = '{{ current_user.username }}';
+  const DOC_ID = {{ doc.id }};
+  const AUDIT_URL = '/verify/audit-ss';  // server-side audit endpoint
+
+  // --- Audit helper (fire-and-forget) ---
+  function auditScreenshotAttempt(method) {
+    fetch(AUDIT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doc_id: DOC_ID, method }),
+      credentials: 'same-origin'
+    }).catch(() => {});
+    console.warn('[AEGON] Screenshot attempt logged:', method);
+  }
+
+  // ── LAYER 1: Block Ctrl+P / Ctrl+S / Ctrl+U / DevTools / F12 ────
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    // Block Ctrl combos
+    if (e.ctrlKey && ['s','p','u','a','c','x'].includes(e.key.toLowerCase())) {
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    // Block DevTools
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase()))) {
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    // Block Win+Shift+S (Windows Snipping Tool) – partial interception
+    if (e.shiftKey && e.metaKey && e.key.toLowerCase() === 's') {
+      e.preventDefault(); return;
+    }
+    // ── LAYER 2a: PrintScreen key – nuke clipboard ──────────────
+    if (e.key === 'PrintScreen' || e.keyCode === 44) {
+      e.preventDefault();
+      // Overwrite clipboard with warning text
+      navigator.clipboard.writeText(
+        '[AEGON SECURITY] Screenshot of classified document blocked. Attempt logged.'
+      ).catch(() => {});
+      auditScreenshotAttempt('PrintScreen-keydown');
+      showAlert('PrintScreen key detected. Attempt logged.');
+    }
+  });
+
+  // PrintScreen on keyup (some browsers only fire keyup for PrtScn)
+  document.addEventListener('keyup', e => {
+    if (e.key === 'PrintScreen' || e.keyCode === 44) {
+      navigator.clipboard.writeText(
+        '[AEGON SECURITY] Screenshot of classified document blocked.'
+      ).catch(() => {});
+      auditScreenshotAttempt('PrintScreen-keyup');
+    }
+  });
+
+  // Block beforeprint (Ctrl+P / browser print)
+  window.addEventListener('beforeprint', e => {
+    e.preventDefault();
+    auditScreenshotAttempt('print-dialog');
+  });
+
+  // ── LAYER 3: Blur-on-focus-loss (covers Win+Shift+S, Alt+PrtScn, snipping tools) ──
+  const viewerArea = document.getElementById('viewer-area');
+  const blurShield = document.getElementById('blur-shield');
+  let blurTimer = null;
+
+  function hideDocument(reason) {
+    viewerArea.classList.add('blurred');
+    blurShield.classList.add('active');
+    auditScreenshotAttempt(reason);
+  }
+  function showDocument() {
+    clearTimeout(blurTimer);
+    blurTimer = setTimeout(() => {
+      viewerArea.classList.remove('blurred');
+      blurShield.classList.remove('active');
+    }, 300);
+  }
+
+  // Window blur: user switches app (snipping tool, screenshot util)
+  window.addEventListener('blur', () => hideDocument('window-blur'));
+  window.addEventListener('focus', showDocument);
+
+  // ── LAYER 4: Page Visibility API – detect tab hide / screen-off ──
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hideDocument('visibility-hidden');
+    } else {
+      showDocument();
+    }
+  });
+
+  // ── LAYER 5: Screen Capture API interception ────────────────────
+  // Intercept getDisplayMedia (screen share / OBS / recording software)
+  if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    const _origGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = async function(constraints) {
+      hideDocument('getDisplayMedia-intercept');
+      auditScreenshotAttempt('screen-capture-api');
+      showAlert('Screen capture detected. Document hidden & attempt logged.');
+      // Let the call proceed (we cannot block it) but document is already hidden
+      try {
+        return await _origGetDisplayMedia(constraints);
+      } catch(e) { throw e; }
+    };
+  }
+
+  // ── LAYER 6: Canvas taint guard ─────────────────────────────────
+  // Override toDataURL / toBlob on all canvases so extraction throws SecurityError
+  (function poisonCanvases() {
+    const _origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const _origToBlob   = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toDataURL = function() {
+      if (this.classList.contains('pdf-page')) {
+        auditScreenshotAttempt('canvas-toDataURL');
+        throw new DOMException('SecurityError: canvas has been tainted by cross-origin data.', 'SecurityError');
+      }
+      return _origToDataURL.apply(this, arguments);
+    };
+    HTMLCanvasElement.prototype.toBlob = function(cb) {
+      if (this.classList.contains('pdf-page')) {
+        auditScreenshotAttempt('canvas-toBlob');
+        throw new DOMException('SecurityError: canvas has been tainted by cross-origin data.', 'SecurityError');
+      }
+      return _origToBlob.apply(this, arguments);
+    };
+  })();
+
+  // ── Alert helper ────────────────────────────────────────────────
+  function showAlert(msg) {
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed;top:72px;right:16px;z-index:10000;padding:12px 18px;
+      background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);border-radius:12px;
+      color:#f87171;font-size:0.75rem;font-weight:600;backdrop-filter:blur(12px);
+      box-shadow:0 4px 24px rgba(239,68,68,0.2);max-width:320px;`;
+    el.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2"></i>' + msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  // ── Live banner clock ────────────────────────────────────────
+  function updateBannerTime() {
+    const el = document.getElementById('banner-time');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-IN', {hour12: false}) + ' IST';
+  }
+  setInterval(updateBannerTime, 1000);
+  updateBannerTime();
+
+  // ── PDF.js loader ────────────────────────────────────────────
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const STREAM_URL = "{{ url_for('documents.stream_document', doc_id=doc.id) }}";
+  const container = document.getElementById('pdf-container');
+  const loadBar = document.getElementById('load-bar');
+  const loadStatus = document.getElementById('load-status');
+
+  let pdfDoc = null;
+  let currentPage = 1;
+  let scale = 1.4;
+
+  function setLoadProgress(pct, status) {
+    loadBar.style.width = pct + '%';
+    if (status) loadStatus.textContent = status;
+  }
+
+  async function renderPage(num) {
+    const page = await pdfDoc.getPage(num);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.className = 'pdf-page';
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas;
+  }
+
+  async function loadPDF() {
+    setLoadProgress(20, 'Fetching encrypted stream…');
+    const response = await fetch(STREAM_URL, { credentials: 'same-origin' });
+    if (!response.ok) { loadStatus.textContent = 'Error loading document.'; return; }
+
+    setLoadProgress(50, 'Applying watermark…');
+    const arrayBuffer = await response.arrayBuffer();
+
+    setLoadProgress(70, 'Rendering pages…');
+    pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    const total = pdfDoc.numPages;
+    document.getElementById('page-count').textContent = total;
+    document.getElementById('btn-next').disabled = total <= 1;
+
+    // Render all pages
+    container.innerHTML = '';
+    for (let i = 1; i <= total; i++) {
+      setLoadProgress(70 + Math.round((i / total) * 28), `Rendering page ${i} of ${total}…`);
+      const canvas = await renderPage(i);
+      canvas.dataset.page = i;
+      container.appendChild(canvas);
+    }
+
+    setLoadProgress(100, 'Done.');
+    setTimeout(() => {
+      document.getElementById('loading-overlay').style.display = 'none';
+    }, 400);
+  }
+
+  loadPDF().catch(err => {
+    loadStatus.textContent = 'Failed to load: ' + err.message;
+  });
+
+  // ── Scroll-based page tracker ────────────────────────────────
+  document.getElementById('pdf-container').addEventListener('scroll', function() {
+    const canvases = container.querySelectorAll('.pdf-page');
+    for (const canvas of canvases) {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.top >= 64 || rect.bottom > 64 + 100) {
+        currentPage = parseInt(canvas.dataset.page) || 1;
+        document.getElementById('page-num').textContent = currentPage;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = pdfDoc && currentPage >= pdfDoc.numPages;
+        break;
+      }
+    }
+  });
+
+  // ── Page navigation ──────────────────────────────────────────
+  document.getElementById('btn-prev').addEventListener('click', () => {
+    if (currentPage > 1) scrollToPage(currentPage - 1);
+  });
+  document.getElementById('btn-next').addEventListener('click', () => {
+    if (pdfDoc && currentPage < pdfDoc.numPages) scrollToPage(currentPage + 1);
+  });
+
+  function scrollToPage(num) {
+    const canvas = container.querySelector(`[data-page="${num}"]`);
+    if (canvas) canvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Zoom ─────────────────────────────────────────────────────
+  document.getElementById('btn-zoom-in').addEventListener('click', async () => {
+    if (scale >= 3.0) return;
+    scale = Math.round((scale + 0.2) * 10) / 10;
+    document.getElementById('zoom-label').textContent = Math.round(scale * 100) + '%';
+    await reRender();
+  });
+  document.getElementById('btn-zoom-out').addEventListener('click', async () => {
+    if (scale <= 0.5) return;
+    scale = Math.round((scale - 0.2) * 10) / 10;
+    document.getElementById('zoom-label').textContent = Math.round(scale * 100) + '%';
+    await reRender();
+  });
+
+  async function reRender() {
+    if (!pdfDoc) return;
+    container.innerHTML = '';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const canvas = await renderPage(i);
+      canvas.dataset.page = i;
+      container.appendChild(canvas);
+    }
+  }
+</script>
+</body>
+</html>

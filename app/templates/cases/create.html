@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}New Case – AEGON{% endblock %}
+{% block page_title %}Create New Case{% endblock %}
+{% block page_subtitle %}Register a new investigation case file{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl animate-fade-in">
+  <a href="{{ url_for('cases.list_cases') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-white text-sm mb-6 transition-colors">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back to Cases
+  </a>
+
+  <div class="glass-card p-8">
+    <h3 class="text-white font-bold text-xl mb-2 flex items-center gap-3">
+      <i class="fa-solid fa-folder-plus text-brand-400"></i>
+      Register New Case
+    </h3>
+    <p class="text-slate-500 text-sm mb-8">Create a new case container. All evidence documents will be linked to this case.</p>
+
+    <form method="POST" action="{{ url_for('cases.create_case') }}" class="space-y-6">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            Case Number / FIR No. *
+          </label>
+          <input type="text" name="case_number" required id="case_number"
+                 placeholder="e.g. FIR-2026-001234"
+                 class="input-field w-full px-4 py-3 text-sm font-mono" />
+          <p class="text-slate-600 text-xs mt-1">Must be unique across all cases.</p>
+        </div>
+        <div class="flex items-end">
+          <button type="button" id="gen-case-num"
+                  class="w-full py-3 px-4 rounded-xl text-xs font-semibold text-brand-300 transition-all"
+                  style="background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);">
+            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Auto-Generate Number
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Case Title *</label>
+        <input type="text" name="title" required id="title"
+               placeholder="Brief descriptive title of the case"
+               class="input-field w-full px-4 py-3 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Description</label>
+        <textarea name="description" rows="4" id="description"
+                  placeholder="Detailed description of the case, incident, or investigation..."
+                  class="input-field w-full px-4 py-3 text-sm resize-none"></textarea>
+      </div>
+
+      <div class="flex gap-4 pt-2">
+        <button type="submit"
+                class="btn-primary flex-1 py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-folder-plus"></i> Create Case
+        </button>
+        <a href="{{ url_for('cases.list_cases') }}"
+           class="px-6 py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white transition-colors"
+           style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.getElementById('gen-case-num').addEventListener('click', function() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const rand = Math.floor(Math.random() * 900000 + 100000);
+    document.getElementById('case_number').value = `FIR-${year}-${rand}`;
+  });
+</script>
+{% endblock %}

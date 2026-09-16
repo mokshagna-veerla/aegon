@@ -1,0 +1,52 @@
+# ─── Python ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.pyo
+
+# ─── Virtual environments ─────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ─── Flask / app runtime ──────────────────────────────
+instance/
+.env
+.flaskenv
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── AEGON sensitive data (NEVER commit these) ────────
+# Encrypted vault (user-uploaded evidence)
+vault/
+
+# RSA private key – CRITICAL, never commit
+keys/private_key.pem
+keys/
+
+# Blockchain ledger (runtime state, not source code)
+blockchain_ledger.json
+
+# ─── OS / editor ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── Build / dist ─────────────────────────────────────
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# ─── Coverage / test ──────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/

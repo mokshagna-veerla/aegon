@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Add User – AEGON{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}Create new AEGON user accounts{% endblock %}
+
+{% block content %}
+<div class="max-w-lg animate-fade-in">
+  <div class="glass-card p-8">
+    <h3 class="text-white font-bold text-xl mb-6 flex items-center gap-3">
+      <i class="fa-solid fa-user-plus text-brand-400"></i>
+      Register New User
+    </h3>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-5">
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Username *</label>
+        <input type="text" name="username" required class="input-field w-full px-4 py-3 text-sm" placeholder="e.g. inspector_kumar" />
+      </div>
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Full Name *</label>
+        <input type="text" name="full_name" required class="input-field w-full px-4 py-3 text-sm" placeholder="Inspector Kumar" />
+      </div>
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Email (optional)</label>
+        <input type="email" name="email" class="input-field w-full px-4 py-3 text-sm" placeholder="user@ncrb.gov.in" />
+      </div>
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Role *</label>
+        <select name="role" class="input-field w-full px-4 py-3 text-sm" style="color:#e2e8f0;">
+          {% for value, label in roles %}
+          <option value="{{ value }}" style="background:#1e293b;">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Password *</label>
+        <input type="password" name="password" required class="input-field w-full px-4 py-3 text-sm" placeholder="Min 8 characters" />
+      </div>
+      <button type="submit" class="btn-primary w-full py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-user-plus"></i> Create User
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

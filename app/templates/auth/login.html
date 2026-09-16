@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Login – AEGON{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center relative overflow-hidden" style="background: #0b0f1a;">
+
+  <!-- Ambient glows -->
+  <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl" style="background: radial-gradient(circle, #6366f1, transparent);"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full opacity-8 blur-3xl" style="background: radial-gradient(circle, #4f46e5, transparent);"></div>
+
+  <div class="w-full max-w-md px-6 py-12 animate-fade-in">
+
+    <!-- Logo -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style="background: linear-gradient(135deg, #6366f1, #4338ca); box-shadow: 0 8px 32px rgba(99,102,241,0.4);">
+        <i class="fa-solid fa-shield-halved text-white text-2xl"></i>
+      </div>
+      <h1 class="text-white text-3xl font-bold tracking-tight">AEGON</h1>
+      <p class="text-slate-500 text-sm mt-2">Secure Digital Evidence Management</p>
+      <p class="text-slate-600 text-xs mt-1">Ministry of Home Affairs · NCRB</p>
+    </div>
+
+    <!-- Card -->
+    <div class="glass-card p-8 rounded-2xl" style="border: 1px solid rgba(99,102,241,0.2);">
+
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash-{{ category }} px-4 py-3 rounded-xl mb-5 flex items-center gap-2 text-sm">
+            <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'error' %}fa-circle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      <h2 class="text-white text-xl font-semibold mb-6">Sign In to AEGON</h2>
+
+      <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-5">
+
+        <div>
+          <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Username</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-sm"></i>
+            <input type="text" name="username" id="username" required autocomplete="username"
+                   placeholder="Enter your username"
+                   class="input-field w-full pl-10 pr-4 py-3 text-sm" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-sm"></i>
+            <input type="password" name="password" id="password" required autocomplete="current-password"
+                   placeholder="Enter your password"
+                   class="input-field w-full pl-10 pr-12 py-3 text-sm" />
+            <button type="button" id="toggle-pw" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors">
+              <i class="fa-solid fa-eye text-sm" id="pw-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="login-btn"
+                class="btn-primary w-full py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 mt-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          Sign In Securely
+        </button>
+      </form>
+
+      <!-- Demo credentials hint -->
+      <div class="mt-6 pt-6 border-t border-white/5">
+        <p class="text-slate-600 text-xs text-center mb-4">Demo Credentials</p>
+        <div class="grid grid-cols-2 gap-2">
+          {% set demo_users = [
+            ('officer_raj', 'Pass@1234', 'Police / IO', 'badge-blue'),
+            ('dr_forensics', 'Pass@1234', 'Forensic Expert', 'badge-yellow'),
+            ('judge_sharma', 'Pass@1234', 'Legal / Judge', 'badge-indigo'),
+            ('admin', 'Admin@5678', 'Admin', 'badge-red'),
+          ] %}
+          {% for uname, pw, role, badge in demo_users %}
+          <button type="button" class="demo-fill {{ badge }} text-xs px-3 py-2 rounded-lg text-left transition-all hover:scale-105"
+                  data-user="{{ uname }}" data-pw="{{ pw }}">
+            <span class="font-mono font-bold block">{{ uname }}</span>
+            <span class="opacity-70">{{ role }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Security notice -->
+    <p class="text-center text-slate-700 text-xs mt-6">
+      <i class="fa-solid fa-lock mr-1"></i>
+      All sessions are encrypted · AES-256-GCM · SHA-256 integrity verification
+    </p>
+  </div>
+</div>
+
+<script>
+  // Password toggle
+  document.getElementById('toggle-pw').addEventListener('click', function() {
+    const pw = document.getElementById('password');
+    const icon = document.getElementById('pw-icon');
+    if (pw.type === 'password') {
+      pw.type = 'text';
+      icon.className = 'fa-solid fa-eye-slash text-sm';
+    } else {
+      pw.type = 'password';
+      icon.className = 'fa-solid fa-eye text-sm';
+    }
+  });
+
+  // One-click demo fill
+  document.querySelectorAll('.demo-fill').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('username').value = this.dataset.user;
+      document.getElementById('password').value = this.dataset.pw;
+    });
+  });
+</script>
+{% endblock %}
