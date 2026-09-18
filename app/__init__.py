@@ -9,9 +9,12 @@ def create_app(config_name: str = "default") -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config.from_object(config[config_name])
 
-    # Ensure directories exist
-    os.makedirs(app.config["VAULT_DIR"], exist_ok=True)
-    os.makedirs(app.config["KEYS_DIR"], exist_ok=True)
+    # Ensure directories exist safely
+    try:
+        os.makedirs(app.config["VAULT_DIR"], exist_ok=True)
+        os.makedirs(app.config["KEYS_DIR"], exist_ok=True)
+    except OSError:
+        pass
 
     # Initialize extensions
     db.init_app(app)
